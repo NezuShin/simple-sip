@@ -1,0 +1,1 @@
+Yet another SIP parser library. Not fully RFC-3261 compatible

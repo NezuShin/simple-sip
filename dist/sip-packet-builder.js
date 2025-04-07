@@ -1,7 +1,10 @@
-import { SIPMethodType } from './sip-packet-helper';
-import { SIPCodes } from './sip-codes';
-import { ViaParam } from './sip-utils';
-import { randomUUID } from 'crypto';
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.SIPResponsePacketBuilder = exports.SIPRequestPacketBuilder = exports.SIPPacketBuilder = void 0;
+const sip_packet_helper_1 = require("./sip-packet-helper");
+const sip_codes_1 = require("./sip-codes");
+const sip_utils_1 = require("./sip-utils");
+const crypto_1 = require("crypto");
 class SIPPacketBuilder {
     headers = [];
     server;
@@ -40,6 +43,7 @@ class SIPPacketBuilder {
         return str;
     }
 }
+exports.SIPPacketBuilder = SIPPacketBuilder;
 class SIPResponsePacketBuilder extends SIPPacketBuilder {
     statusCode = 200;
     statusText = null;
@@ -58,23 +62,24 @@ class SIPResponsePacketBuilder extends SIPPacketBuilder {
         return this.headers;
     }
     prepareRequestLine() {
-        return `SIP/2.0 ${this.statusCode} ${this.statusText || SIPCodes.getCodeName(this.statusCode)}`;
+        return `SIP/2.0 ${this.statusCode} ${this.statusText || sip_codes_1.SIPCodes.getCodeName(this.statusCode)}`;
     }
 }
+exports.SIPResponsePacketBuilder = SIPResponsePacketBuilder;
 class SIPRequestPacketBuilder extends SIPPacketBuilder {
     via;
-    method = SIPMethodType.INVITE;
+    method = sip_packet_helper_1.SIPMethodType.INVITE;
     requestURI = '';
     additional;
     constructor(server, addrInfo, additional) {
         super(server, addrInfo);
         this.additional = additional || {};
-        this.via = ViaParam.create({
+        this.via = sip_utils_1.ViaParam.create({
             address: server.getLocalAddress(),
             port: server.bindAddres?.port,
             params: {
                 rport: "",
-                branch: this.additional?.viaBranch || randomUUID()
+                branch: this.additional?.viaBranch || (0, crypto_1.randomUUID)()
             }
         });
     }
@@ -102,5 +107,5 @@ class SIPRequestPacketBuilder extends SIPPacketBuilder {
         return `${this.method} ${this.requestURI} SIP/2.0`;
     }
 }
-export { SIPPacketBuilder, SIPRequestPacketBuilder, SIPResponsePacketBuilder };
+exports.SIPRequestPacketBuilder = SIPRequestPacketBuilder;
 //# sourceMappingURL=sip-packet-builder.js.map

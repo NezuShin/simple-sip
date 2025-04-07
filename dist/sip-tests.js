@@ -1,8 +1,10 @@
-import { SIPServer } from "./sip-server";
-import { SIPSessionHandler } from "./sip-session-handler";
-let server = new SIPServer();
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const sip_server_1 = require("./sip-server");
+const sip_session_handler_1 = require("./sip-session-handler");
+let server = new sip_server_1.SIPServer();
 server.bind(1337, "127.0.0.1");
-let handler = new SIPSessionHandler(server, {});
+let handler = new sip_session_handler_1.SIPSessionHandler(server, {});
 handler.on("response-session", (session) => {
     let addrInfo;
     session.on("request", (packet) => {

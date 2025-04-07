@@ -1,13 +1,18 @@
-import { SIPResponsePacketBuilder } from './sip-packet-builder';
-import { SIPPacketType, SIPMethodType, HeaderNotFoundError } from './sip-packet-helper';
-import { ViaParam } from './sip-utils';
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.SIPPacketType = exports.SIPMethodType = exports.SIPResponsePacket = exports.SIPRequestPacket = exports.SIPPacket = void 0;
+const sip_packet_builder_1 = require("./sip-packet-builder");
+const sip_packet_helper_1 = require("./sip-packet-helper");
+Object.defineProperty(exports, "SIPPacketType", { enumerable: true, get: function () { return sip_packet_helper_1.SIPPacketType; } });
+Object.defineProperty(exports, "SIPMethodType", { enumerable: true, get: function () { return sip_packet_helper_1.SIPMethodType; } });
+const sip_utils_1 = require("./sip-utils");
 class SIPPacket {
     str = '';
     server;
     addrInfo;
     body;
     headers = [];
-    type = SIPPacketType.Request;
+    type = sip_packet_helper_1.SIPPacketType.Request;
     constructor(str, server, addrInfo) {
         this.str = str;
         this.server = server;
@@ -38,7 +43,7 @@ class SIPPacket {
             if (i.name.toUpperCase() == name.toUpperCase())
                 return i.value;
         }
-        throw new HeaderNotFoundError(`Could not found header ${name}`);
+        throw new sip_packet_helper_1.HeaderNotFoundError(`Could not found header ${name}`);
     }
     parseBody() {
         let div = "\r\n\r\n";
@@ -62,11 +67,12 @@ class SIPPacket {
         return new SIPRequestPacket(str, server, addrInfo);
     }
 }
+exports.SIPPacket = SIPPacket;
 class SIPRequestPacket extends SIPPacket {
-    method = SIPMethodType.INFO;
+    method = sip_packet_helper_1.SIPMethodType.INFO;
     constructor(str, server, addrInfo) {
         super(str, server, addrInfo);
-        this.type = SIPPacketType.Request;
+        this.type = sip_packet_helper_1.SIPPacketType.Request;
         this.parseRequestLine();
     }
     parseRequestLine() {
@@ -74,7 +80,7 @@ class SIPRequestPacket extends SIPPacket {
         this.method = stringMethod;
     }
     createResponse() {
-        let via = new ViaParam(this.getHeaderValue("Via"));
+        let via = new sip_utils_1.ViaParam(this.getHeaderValue("Via"));
         if (via.params.has("rport")) {
             if (via.params.get("rport") == "") {
                 via.params.set("rport", `${this.addrInfo.port}`);
@@ -82,16 +88,17 @@ class SIPRequestPacket extends SIPPacket {
             }
             ;
         }
-        return new SIPResponsePacketBuilder(this.server, this.addrInfo).addHeader("From", this.getHeaderValue("From")).addHeader("To", this.getHeaderValue("To"))
+        return new sip_packet_builder_1.SIPResponsePacketBuilder(this.server, this.addrInfo).addHeader("From", this.getHeaderValue("From")).addHeader("To", this.getHeaderValue("To"))
             .addHeader("Via", via.toString()).addHeader("CSeq", this.getHeaderValue("CSeq")).addHeader("Call-Id", this.getHeaderValue("Call-Id"));
     }
 }
+exports.SIPRequestPacket = SIPRequestPacket;
 class SIPResponsePacket extends SIPPacket {
     statusCode = 0;
     statusText = "";
     constructor(str, server, addrInfo) {
         super(str, server, addrInfo);
-        this.type = SIPPacketType.Response;
+        this.type = sip_packet_helper_1.SIPPacketType.Response;
         this.parseRequestLine();
     }
     parseRequestLine() {
@@ -101,5 +108,5 @@ class SIPResponsePacket extends SIPPacket {
         this.statusText = tempstr.substring(tempstr.indexOf(' ') + 1, tempstr.indexOf('\r\n'));
     }
 }
-export { SIPPacket, SIPRequestPacket, SIPResponsePacket, SIPMethodType, SIPPacketType };
+exports.SIPResponsePacket = SIPResponsePacket;
 //# sourceMappingURL=sip-packet.js.map

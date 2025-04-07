@@ -1,3 +1,6 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.SIPCodes = void 0;
 class SIPCodes {
     static codes = [
         {
@@ -364,5 +367,5 @@ class SIPCodes {
         return null;
     }
 }
-export { SIPCodes };
+exports.SIPCodes = SIPCodes;
 //# sourceMappingURL=sip-codes.js.map

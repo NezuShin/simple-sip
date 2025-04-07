@@ -1,7 +1,10 @@
-import { randomUUID } from "crypto";
-import { FromToParam } from "./sip-utils";
-import { EventEmitter } from "stream";
-class SIPSessionHandler extends EventEmitter {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.SIPSessionHandler = exports.SIPRequestSession = exports.SIPResponseSession = void 0;
+const crypto_1 = require("crypto");
+const sip_utils_1 = require("./sip-utils");
+const stream_1 = require("stream");
+class SIPSessionHandler extends stream_1.EventEmitter {
     requestSessions = [];
     responseSessions = [];
     recievedPackets = [];
@@ -9,14 +12,14 @@ class SIPSessionHandler extends EventEmitter {
     config;
     constructor(server, config) {
         super();
-        this.config = (config || { ignoreResents: true, recievedPacketTTL: 20000, sessionTTL: 60000 });
+        this.config = (config || { recievedPacketTTL: 20000, sessionTTL: 60000 });
         this.server = server;
         this.server.on("request", this.onRequest.bind(this));
         this.server.on("response", this.onResponse.bind(this));
         setInterval(this.maintainRecievedPackets.bind(this), 10000);
     }
     getPacketId(packet) {
-        let param = new FromToParam(packet.getHeaderValue("From"));
+        let param = new sip_utils_1.FromToParam(packet.getHeaderValue("From"));
         return (packet.getHeaderValue("Call-Id")) + param.addressParams.get("tag");
     }
     addPacketToRecieved(packet) {
@@ -82,7 +85,8 @@ class SIPSessionHandler extends EventEmitter {
         }
     }
 }
-class SIPSession extends EventEmitter {
+exports.SIPSessionHandler = SIPSessionHandler;
+class SIPSession extends stream_1.EventEmitter {
     callId;
     from;
     to;
@@ -115,13 +119,13 @@ class SIPSession extends EventEmitter {
 }
 class SIPRequestSession extends SIPSession {
     constructor(data) {
-        super(data.handler, data.callId || randomUUID(), FromToParam.create({
+        super(data.handler, data.callId || (0, crypto_1.randomUUID)(), sip_utils_1.FromToParam.create({
             domain: data.caller.domain,
             username: data.caller.number,
             addressParams: {
-                tag: randomUUID()
+                tag: (0, crypto_1.randomUUID)()
             }
-        }), FromToParam.create({
+        }), sip_utils_1.FromToParam.create({
             domain: data.called.domain,
             username: data.called.number
         }));
@@ -144,7 +148,7 @@ class SIPRequestSession extends SIPSession {
         {
             let toHeader = packet.getHeader("To");
             if (toHeader && !this.toTag) {
-                let tag = new FromToParam(toHeader).addressParams.get("tag");
+                let tag = new sip_utils_1.FromToParam(toHeader).addressParams.get("tag");
                 if (tag)
                     this.to.addressParams.set("tag", tag);
             }
@@ -152,10 +156,11 @@ class SIPRequestSession extends SIPSession {
         this.emit("response", packet);
     }
 }
+exports.SIPRequestSession = SIPRequestSession;
 class SIPResponseSession extends SIPSession {
     constructor(data) {
         let { handler, packet } = data;
-        super(handler, packet.getHeaderValue("Call-Id"), new FromToParam(packet.getHeaderValue("From")), new FromToParam(packet.getHeaderValue("To")));
+        super(handler, packet.getHeaderValue("Call-Id"), new sip_utils_1.FromToParam(packet.getHeaderValue("From")), new sip_utils_1.FromToParam(packet.getHeaderValue("To")));
         this.once('newListener', (event) => {
             if (event === 'request') {
                 setImmediate(() => {
@@ -169,5 +174,5 @@ class SIPResponseSession extends SIPSession {
         this.emit("request", packet);
     }
 }
-export { SIPResponseSession, SIPRequestSession, SIPSessionHandler };
+exports.SIPResponseSession = SIPResponseSession;
 //# sourceMappingURL=sip-session-handler.js.map

@@ -1,8 +1,11 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.HeaderNotFoundError = exports.SIPMethodType = exports.SIPPacketType = void 0;
 var SIPPacketType;
 (function (SIPPacketType) {
     SIPPacketType["Request"] = "request";
     SIPPacketType["Response"] = "response";
-})(SIPPacketType || (SIPPacketType = {}));
+})(SIPPacketType || (exports.SIPPacketType = SIPPacketType = {}));
 var SIPMethodType;
 (function (SIPMethodType) {
     SIPMethodType["INVITE"] = "INVITE";
@@ -19,8 +22,8 @@ var SIPMethodType;
     SIPMethodType["REFER"] = "REFER";
     SIPMethodType["MESSAGE"] = "MESSAGE";
     SIPMethodType["UPDATE"] = "UPDATE";
-})(SIPMethodType || (SIPMethodType = {}));
+})(SIPMethodType || (exports.SIPMethodType = SIPMethodType = {}));
 class HeaderNotFoundError extends Error {
 }
-export { SIPPacketType, SIPMethodType, HeaderNotFoundError };
+exports.HeaderNotFoundError = HeaderNotFoundError;
 //# sourceMappingURL=sip-packet-helper.js.map

@@ -1,8 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.FromToParam = exports.ViaTransport = exports.ViaParam = void 0;
+exports.parseAuthorization = parseAuthorization;
 //deprecated. Need noraml version
 function parseAuthorization(string) {
     if (!string)
         return undefined;
-    //Digest username="111",realm="asterisk",nonce="641e92e4",uri="sip:nezushin.ru:5000",algorithm=MD5,response="cde4073a9c51e83ab44251d2f8c094fa"'
+    //Digest username="111",realm="asterisk",nonce="641e92e4",uri="sip:nezushin.ru:5000",algorithm=MD5,response="hash"'
     let authSplit = string.substring(string.indexOf(" ") + 1, string.length).split(",");
     let parms = {};
     for (let i = 0; i < authSplit.length; i++) {
@@ -23,7 +27,7 @@ var ViaTransport;
 (function (ViaTransport) {
     ViaTransport["UDP"] = "UDP";
     ViaTransport["TCP"] = "TCP";
-})(ViaTransport || (ViaTransport = {}));
+})(ViaTransport || (exports.ViaTransport = ViaTransport = {}));
 function parseAddressParams(paramsStr, map) {
     let paramName = "";
     let nameFilled = false;
@@ -96,6 +100,7 @@ class ViaParam {
         return `SIP/2.0/${this.transport} ${this.address}:${this.port}${prepareAddressParams(this.params)}`;
     }
 }
+exports.ViaParam = ViaParam;
 class FromToParam {
     static create(data) {
         let params = new FromToParam();
@@ -202,6 +207,7 @@ class FromToParam {
         return result;
     }
 }
+exports.FromToParam = FromToParam;
 //console.log(new FromToParam("\"Bob \\\"\" <sip:example.com;xyz=123;wierd=%26>;xyz=456;wierd=\"123\\\"\"").toString());
 /*console.log(FromToParam.create({
     username: "bob",
@@ -213,5 +219,4 @@ class FromToParam {
 }).toString())*/
 function parseFromTo(str) {
 }
-export { ViaParam, ViaTransport, FromToParam, parseAuthorization };
 //# sourceMappingURL=sip-utils.js.map

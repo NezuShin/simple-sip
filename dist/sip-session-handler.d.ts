@@ -10,12 +10,10 @@ interface RecievedPacket {
 interface SIPSessionHandlerConfig {
     recievedPacketTTL?: number;
     sessionTTL?: number;
-    ignoreResents?: boolean;
 }
 interface SIPSessionHandlerInternalConfig {
     recievedPacketTTL: number;
     sessionTTL: number;
-    ignoreResents: boolean;
 }
 declare class SIPSessionHandler extends EventEmitter {
     requestSessions: SIPRequestSession[];

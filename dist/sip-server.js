@@ -1,14 +1,17 @@
-import { createSocket } from 'dgram';
-import { EventEmitter } from 'events';
-import { SIPRequestPacketBuilder } from './sip-packet-builder';
-import { SIPPacket, SIPPacketType } from './sip-packet';
-class SIPServer extends EventEmitter {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.SIPServer = void 0;
+const dgram_1 = require("dgram");
+const events_1 = require("events");
+const sip_packet_builder_1 = require("./sip-packet-builder");
+const sip_packet_1 = require("./sip-packet");
+class SIPServer extends events_1.EventEmitter {
     server;
     currentCSeq = 1;
     bindAddres;
     constructor() {
         super();
-        this.server = createSocket('udp4');
+        this.server = (0, dgram_1.createSocket)('udp4');
         this.server.on('message', this.onMessage.bind(this));
         this.server.on('error', this.onError.bind(this));
         this.server.on('listening', this.onServerListening.bind(this));
@@ -26,11 +29,11 @@ class SIPServer extends EventEmitter {
         let msg = data.toString('utf8');
         if (!msg.trim().replaceAll("\r", "").replaceAll("\n", "").length)
             return;
-        let packet = SIPPacket.decode(msg, this, addrInfo);
-        if (packet.type == SIPPacketType.Request) {
+        let packet = sip_packet_1.SIPPacket.decode(msg, this, addrInfo);
+        if (packet.type == sip_packet_1.SIPPacketType.Request) {
             this.emit('request', packet);
         }
-        else if (packet.type == SIPPacketType.Response) {
+        else if (packet.type == sip_packet_1.SIPPacketType.Response) {
             this.emit('response', packet);
         }
     }
@@ -52,7 +55,7 @@ class SIPServer extends EventEmitter {
         this.emit('error', err);
     }
     createRequest(address, port, additional) {
-        return new SIPRequestPacketBuilder(this, { address, port }, additional);
+        return new sip_packet_builder_1.SIPRequestPacketBuilder(this, { address, port }, additional);
     }
     getLocalAddress() {
         return this.bindAddres.address;
@@ -72,5 +75,5 @@ class SIPServer extends EventEmitter {
         console.log(`SIP server is listening at ${ipaddr}:${port}`);
     }
 }
-export { SIPServer, };
+exports.SIPServer = SIPServer;
 //# sourceMappingURL=sip-server.js.map

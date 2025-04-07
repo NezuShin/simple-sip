@@ -36,7 +36,9 @@ enum ViaTransport {
     TCP = 'TCP'
 }
 
-function parseAddressParams(paramsStr: string, map: Map<string, string>) {
+function parseAddressParams(paramsStr: string | undefined, map: Map<string, string>) {
+    if(!paramsStr || !paramsStr.length)
+        return;
     let paramName = "";
     let nameFilled = false;
     let paramValue = "";
@@ -195,7 +197,7 @@ class FromToParam {
 
         this.displayname = data?.groups.displayname;
 
-        this.displayname = this.displayname.startsWith("\"") && this.displayname.endsWith("\"") ? this.displayname.substring(1, this.displayname.length - 1).replace("\\\"", "\"") : this.displayname
+        this.displayname = this.displayname?.startsWith("\"") && this.displayname.endsWith("\"") ? this.displayname.substring(1, this.displayname.length - 1).replace("\\\"", "\"") : this.displayname
 
         this.username = data.groups.username;
 
@@ -206,7 +208,9 @@ class FromToParam {
         parseAddressParams(data.groups.addressParams, this.addressParams);
     }
 
-    private parseParams(paramsStr: string, map: Map<string, string | undefined>) {
+    private parseParams(paramsStr: string | undefined, map: Map<string, string | undefined>) {
+        if (!paramsStr || !paramsStr.length)
+            return;
         let paramName = "";
         let nameFilled = false;
         let paramValue = "";

@@ -29,6 +29,8 @@ var ViaTransport;
     ViaTransport["TCP"] = "TCP";
 })(ViaTransport || (exports.ViaTransport = ViaTransport = {}));
 function parseAddressParams(paramsStr, map) {
+    if (!paramsStr || !paramsStr.length)
+        return;
     let paramName = "";
     let nameFilled = false;
     let paramValue = "";
@@ -139,7 +141,7 @@ class FromToParam {
         if (!data || !data.groups)
             return;
         this.displayname = data?.groups.displayname;
-        this.displayname = this.displayname.startsWith("\"") && this.displayname.endsWith("\"") ? this.displayname.substring(1, this.displayname.length - 1).replace("\\\"", "\"") : this.displayname;
+        this.displayname = this.displayname?.startsWith("\"") && this.displayname.endsWith("\"") ? this.displayname.substring(1, this.displayname.length - 1).replace("\\\"", "\"") : this.displayname;
         this.username = data.groups.username;
         this.domain = data.groups.domain;
         this.parseParams(data.groups.userParams, this.userParams);
@@ -147,6 +149,8 @@ class FromToParam {
         parseAddressParams(data.groups.addressParams, this.addressParams);
     }
     parseParams(paramsStr, map) {
+        if (!paramsStr || !paramsStr.length)
+            return;
         let paramName = "";
         let nameFilled = false;
         let paramValue = "";

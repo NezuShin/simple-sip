@@ -79,7 +79,7 @@ class SIPRequestPacketBuilder extends SIPPacketBuilder {
             port: server.bindAddres?.port,
             params: {
                 rport: "",
-                branch: this.additional?.viaBranch || (0, crypto_1.randomUUID)()
+                branch: this.additional?.viaBranch || 'z9hG4bKn-' + (0, crypto_1.randomUUID)()
             }
         });
     }

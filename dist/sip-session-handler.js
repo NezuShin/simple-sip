@@ -1,13 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SIPSessionHandler = exports.SIPRequestSession = exports.SIPResponseSession = void 0;
+exports.SIPSessionHandler = exports.SIPResponseSession = void 0;
 const crypto_1 = require("crypto");
 const sip_utils_1 = require("./sip-utils");
 const stream_1 = require("stream");
 class SIPSessionHandler extends stream_1.EventEmitter {
-    requestSessions = [];
-    responseSessions = [];
-    recievedPackets = [];
+    sessions = [];
     server;
     config;
     constructor(server, config) {
@@ -22,63 +20,47 @@ class SIPSessionHandler extends stream_1.EventEmitter {
         let param = new sip_utils_1.FromToParam(packet.getHeaderValue("From"));
         return (packet.getHeaderValue("Call-Id")) + param.addressParams.get("tag");
     }
-    addPacketToRecieved(packet) {
-        this.recievedPackets.push({ hash: packet.hashCode(), dateRecieved: Date.now() });
-    }
-    isPackedRecieved(packet) {
-        let hashCode = packet.hashCode();
-        for (let i of this.recievedPackets) {
-            if (i.hash === hashCode)
-                return true;
-        }
-        return false;
-    }
     onRequest(packet) {
-        if (this.isPackedRecieved(packet))
-            return;
-        this.addPacketToRecieved(packet);
         let packetId = this.getPacketId(packet);
-        let session = this.responseSessions.filter(i => i.id == packetId)[0];
+        let session = this.sessions.filter(i => i.id == packetId)[0];
         if (!session) {
             session = new SIPResponseSession({ packet, handler: this });
             this.emit("response-session", session);
-            this.responseSessions.push(session);
+            this.sessions.push(session);
             return;
         }
         session.onRequest(packet);
     }
     onResponse(packet) {
-        if (this.isPackedRecieved(packet))
-            return;
-        this.addPacketToRecieved(packet);
         let packetId = this.getPacketId(packet);
-        let session = this.requestSessions.filter(i => i.id == packetId)[0];
+        let session = this.sessions.filter(i => i.id == packetId)[0];
         if (!!session)
             session.onResponse(packet);
     }
-    createRequestSession(data) {
-        let { caller, called, callId } = data;
-        let session = new SIPRequestSession({
-            called,
-            caller,
+    /*
+        {
+            caller: '1337@domain.net',
+            called: '1337@domain.net',
+            contact: '1337@(my ip)'
+        }
+    */
+    createRequestSession({ caller, called, callId, contact }) {
+        let from = new sip_utils_1.FromToParam(caller);
+        let session = new SIPSession({
+            to: new sip_utils_1.FromToParam(called),
+            from,
+            contact: contact ? new sip_utils_1.FromToParam(contact) : new sip_utils_1.FromToParam(`${from.username}@${this.server.externalAddres.address}:${this.server.externalAddres.port}`),
             handler: this,
-            callId
+            callId: callId || (0, crypto_1.randomUUID)()
         });
-        this.requestSessions.push(session);
+        this.sessions.push(session);
         return session;
     }
     removeSession(id) {
-        this.requestSessions = this.requestSessions.filter(i => i.id !== id);
-        this.responseSessions = this.responseSessions.filter(i => i.id !== id);
+        this.sessions = this.sessions.filter(i => i.id !== id);
     }
     maintainRecievedPackets() {
-        this.recievedPackets = this.recievedPackets.filter(i => Date.now() - i.dateRecieved > (this.config.recievedPacketTTL));
-        for (let i of this.requestSessions) {
-            if (Date.now() - i.lastMessageTime > (this.config.sessionTTL)) {
-                i.destroy();
-            }
-        }
-        for (let i of this.responseSessions) {
+        for (let i of this.sessions) {
             if (Date.now() - i.lastMessageTime > (this.config.sessionTTL)) {
                 i.destroy();
             }
@@ -90,15 +72,19 @@ class SIPSession extends stream_1.EventEmitter {
     callId;
     from;
     to;
+    contact;
     appendHeaders = [];
+    cSeq = 0;
     lastMessageTime = Date.now();
     handler;
-    constructor(handler, callId, from, to) {
+    constructor({ handler, callId, from, to, contact }) {
         super();
         this.handler = handler;
         this.callId = callId;
         this.from = from;
         this.to = to;
+        this.contact = contact;
+        this.nextCSeq();
     }
     get fromTag() {
         return this.from.addressParams.get("tag");
@@ -109,35 +95,32 @@ class SIPSession extends stream_1.EventEmitter {
     get id() {
         return this.callId + this.fromTag; // + this.toTag;
     }
+    nextCSeq() {
+        this.cSeq = this.handler.server.nextCSeq();
+    }
     appendHeader(name, value) {
+        this.appendHeaders.push({ name, value });
+    }
+    replaceHeader(name, value) {
+        this.appendHeaders = this.appendHeaders.filter(i => i.name !== name);
         this.appendHeaders.push({ name, value });
     }
     destroy() {
         this.handler.removeSession(this.id);
         this.emit('destroy');
     }
-}
-class SIPRequestSession extends SIPSession {
-    constructor(data) {
-        super(data.handler, data.callId || (0, crypto_1.randomUUID)(), sip_utils_1.FromToParam.create({
-            domain: data.caller.domain,
-            username: data.caller.number,
-            addressParams: {
-                tag: (0, crypto_1.randomUUID)()
-            }
-        }), sip_utils_1.FromToParam.create({
-            domain: data.called.domain,
-            username: data.called.number
-        }));
-    }
-    createRequest(address, port, additional) {
-        let ruri = this.to.clone();
+    createRequest({ address, port, viaBranch, cSeq, requestURI }) {
+        let ruri = requestURI ? new sip_utils_1.FromToParam(requestURI) : this.to.clone();
         ruri.addressParams.delete("tag");
-        let contact = this.to.clone();
-        contact.addressParams.delete("tag");
-        contact.uriParams.set("ab", '');
-        let req = this.handler.server.createRequest(address, port, additional).addHeader("From", this.from.toString()).addHeader("To", this.to.toString())
-            .addHeader("Contact", contact.toString()).setRequestURI(ruri.toRequestURI()).addHeader("Call-Id", this.callId);
+        let req = this.handler.server.createRequest(address, port, {
+            cSeqNum: cSeq ? cSeq : this.cSeq,
+            viaBranch
+        })
+            .addHeader("From", this.from.toString())
+            .addHeader("To", this.to.toString())
+            .addHeader("Contact", this.contact.toString())
+            .setRequestURI(ruri.toRequestURI())
+            .addHeader("Call-Id", this.callId);
         for (let header of this.appendHeaders) {
             req.addHeader(header.name, header.value);
         }
@@ -155,12 +138,21 @@ class SIPRequestSession extends SIPSession {
         }
         this.emit("response", packet);
     }
+    onRequest(packet) {
+        this.lastMessageTime = Date.now();
+        this.emit("request", packet);
+    }
 }
-exports.SIPRequestSession = SIPRequestSession;
 class SIPResponseSession extends SIPSession {
     constructor(data) {
         let { handler, packet } = data;
-        super(handler, packet.getHeaderValue("Call-Id"), new sip_utils_1.FromToParam(packet.getHeaderValue("From")), new sip_utils_1.FromToParam(packet.getHeaderValue("To")));
+        super({
+            handler,
+            callId: packet.getHeaderValue("Call-Id"),
+            from: new sip_utils_1.FromToParam(packet.getHeaderValue("From")),
+            to: new sip_utils_1.FromToParam(packet.getHeaderValue("To")),
+            contact: new sip_utils_1.FromToParam(packet.getHeaderValue("Contact"))
+        });
         this.once('newListener', (event) => {
             if (event === 'request') {
                 setImmediate(() => {
@@ -168,10 +160,6 @@ class SIPResponseSession extends SIPSession {
                 });
             }
         });
-    }
-    onRequest(packet) {
-        this.lastMessageTime = Date.now();
-        this.emit("request", packet);
     }
 }
 exports.SIPResponseSession = SIPResponseSession;

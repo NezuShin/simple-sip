@@ -5,10 +5,12 @@ const dgram_1 = require("dgram");
 const events_1 = require("events");
 const sip_packet_builder_1 = require("./sip-packet-builder");
 const sip_packet_1 = require("./sip-packet");
+const sip_utils_1 = require("./sip-utils");
 class SIPServer extends events_1.EventEmitter {
     server;
     currentCSeq = 1;
     bindAddres;
+    externalAddres;
     constructor() {
         super();
         this.server = (0, dgram_1.createSocket)('udp4');
@@ -19,6 +21,7 @@ class SIPServer extends events_1.EventEmitter {
     bind(port, address) {
         address = address || "0.0.0.0";
         this.bindAddres = { port, address };
+        this.externalAddres = { port, address: address || (0, sip_utils_1.getExternalAddress)() };
         return new Promise((resolve, reject) => {
             this.server.bind(port, address || "0.0.0.0", () => {
                 resolve();
@@ -37,8 +40,10 @@ class SIPServer extends events_1.EventEmitter {
             this.emit('response', packet);
         }
     }
-    sendPacket(data, addrInfo) {
-        return new Promise((resolve, reject) => {
+    async sendPacket(data, addrInfo) {
+        if (!this.bindAddres || !this.externalAddres)
+            await this.bind(0);
+        return await new Promise((resolve, reject) => {
             this.server.send(data, addrInfo.port, addrInfo.address, (err) => {
                 if (err) {
                     reject(err);
@@ -57,9 +62,6 @@ class SIPServer extends events_1.EventEmitter {
     createRequest(address, port, additional) {
         return new sip_packet_builder_1.SIPRequestPacketBuilder(this, { address, port }, additional);
     }
-    getLocalAddress() {
-        return this.bindAddres.address;
-    }
     close() {
         return new Promise((resolve, reject) => {
             this.server.close(() => {
@@ -70,9 +72,11 @@ class SIPServer extends events_1.EventEmitter {
     onServerListening() {
         let address = this.server.address();
         let port = address.port;
+        this.bindAddres.port = port;
+        this.externalAddres.port = port;
         let family = address.family;
         let ipaddr = address.address;
-        console.log(`SIP server is listening at ${ipaddr}:${port}`);
+        console.log(`SIP server is listening at ${ipaddr}:${port}; Using ${this.externalAddres.address} as external address.`);
     }
 }
 exports.SIPServer = SIPServer;

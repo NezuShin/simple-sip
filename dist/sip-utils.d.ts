@@ -48,5 +48,6 @@ declare class FromToParam {
     toString(): string;
     clone(): FromToParam;
 }
-export { ViaParam, ViaTransport, ParamData, FromToParamDataCreate, ViaParamDataCreate, FromToParam, parseAuthorization };
+declare function getExternalAddress(): string;
+export { ViaParam, ViaTransport, ParamData, FromToParamDataCreate, ViaParamDataCreate, FromToParam, parseAuthorization, getExternalAddress };
 //# sourceMappingURL=sip-utils.d.ts.map

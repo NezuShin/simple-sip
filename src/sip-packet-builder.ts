@@ -22,6 +22,12 @@ abstract class SIPPacketBuilder {
         return this;
     }
 
+    public replaceHeader(name: string, value: any) {
+        this.headers = this.headers.filter(i => i.name !== name);
+        this.headers.push({ name, value: `${value}` });
+        return this;
+    }
+
     public hasHeader(name: string) {
         name = name.toUpperCase();
         for (let i of this.headers) {

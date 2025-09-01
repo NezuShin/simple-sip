@@ -7,7 +7,8 @@ interface AddrInfo {
 declare class SIPServer extends EventEmitter {
     private server;
     private currentCSeq;
-    bindAddres?: AddrInfo;
+    bindAddres: AddrInfo;
+    externalAddres: AddrInfo;
     constructor();
     bind(port: number, address?: string | undefined | null): Promise<void>;
     private onMessage;
@@ -15,7 +16,6 @@ declare class SIPServer extends EventEmitter {
     nextCSeq(): number;
     private onError;
     createRequest(address: string, port: number, additional?: SIPRequestPacketBuilderAdditional): SIPRequestPacketBuilder;
-    getLocalAddress(): string;
     close(): Promise<void>;
     private onServerListening;
 }

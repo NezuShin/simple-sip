@@ -2,6 +2,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FromToParam = exports.ViaTransport = exports.ViaParam = void 0;
 exports.parseAuthorization = parseAuthorization;
+exports.getExternalAddress = getExternalAddress;
+const os_1 = require("os");
 //deprecated. Need noraml version
 function parseAuthorization(string) {
     if (!string)
@@ -221,6 +223,11 @@ exports.FromToParam = FromToParam;
         "tag": "0x000000b"
     }
 }).toString())*/
-function parseFromTo(str) {
+function getExternalAddress() {
+    //Object.values(networkInterfaces()).reduce((list, val) => list?.concat(val), [])?.filter(i => i.family == 'IPv4' && !i.internal)
+    return Object.values((0, os_1.networkInterfaces)())
+        .reduce((list, val) => list?.concat(val), [])
+        ?.filter(i => i.family == 'IPv4' && !i.internal)
+        .map(i => i.address)[0];
 }
 //# sourceMappingURL=sip-utils.js.map

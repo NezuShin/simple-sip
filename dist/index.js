@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.parseAuthorization = exports.FromToParam = exports.ViaTransport = exports.ViaParam = exports.SIPSessionHandler = exports.SIPRequestSession = exports.SIPResponseSession = exports.SIPServer = exports.SIPPacket = exports.SIPResponsePacket = exports.SIPRequestPacket = exports.HeaderNotFoundError = exports.SIPMethodType = exports.SIPPacketType = exports.SIPCodes = exports.SIPResponsePacketBuilder = exports.SIPRequestPacketBuilder = exports.SIPPacketBuilder = void 0;
+exports.parseAuthorization = exports.FromToParam = exports.ViaTransport = exports.ViaParam = exports.SIPSessionHandler = exports.SIPResponseSession = exports.SIPServer = exports.SIPPacket = exports.SIPResponsePacket = exports.SIPRequestPacket = exports.HeaderNotFoundError = exports.SIPMethodType = exports.SIPPacketType = exports.SIPCodes = exports.SIPResponsePacketBuilder = exports.SIPRequestPacketBuilder = exports.SIPPacketBuilder = void 0;
 const sip_codes_1 = require("./sip-codes");
 Object.defineProperty(exports, "SIPCodes", { enumerable: true, get: function () { return sip_codes_1.SIPCodes; } });
 const sip_packet_1 = require("./sip-packet");
@@ -18,7 +18,6 @@ Object.defineProperty(exports, "HeaderNotFoundError", { enumerable: true, get: f
 const sip_server_1 = require("./sip-server");
 Object.defineProperty(exports, "SIPServer", { enumerable: true, get: function () { return sip_server_1.SIPServer; } });
 const sip_session_handler_1 = require("./sip-session-handler");
-Object.defineProperty(exports, "SIPRequestSession", { enumerable: true, get: function () { return sip_session_handler_1.SIPRequestSession; } });
 Object.defineProperty(exports, "SIPResponseSession", { enumerable: true, get: function () { return sip_session_handler_1.SIPResponseSession; } });
 Object.defineProperty(exports, "SIPSessionHandler", { enumerable: true, get: function () { return sip_session_handler_1.SIPSessionHandler; } });
 const sip_utils_1 = require("./sip-utils");

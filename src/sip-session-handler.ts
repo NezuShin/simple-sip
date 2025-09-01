@@ -136,7 +136,7 @@ class SIPSession extends EventEmitter {
         return this.callId + this.fromTag// + this.toTag;
     }
 
-    public nextCSeq(){
+    public nextCSeq() {
         this.cSeq = this.handler.server.nextCSeq();
     }
 
@@ -170,7 +170,7 @@ class SIPSession extends EventEmitter {
             .addHeader("Call-Id", this.callId)
 
         for (let header of this.appendHeaders) {
-            req.addHeader(header.name, header.value);
+            req.replaceHeader(header.name, header.value);
         }
 
         return req;

@@ -23,6 +23,13 @@ abstract class SIPPacket {
         this.parseBody();
     }
 
+    public hasHeader(name: string) {
+        for (let i of this.headers)
+            if (i.name == name)
+                return true;
+        return false;
+    }
+
 
     public getHeader(name: string): string | null {
         for (let i of this.headers) {

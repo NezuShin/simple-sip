@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SIPSessionHandler = exports.SIPResponseSession = void 0;
 const crypto_1 = require("crypto");
+const sip_packet_1 = require("./sip-packet");
 const sip_utils_1 = require("./sip-utils");
 const stream_1 = require("stream");
 class SIPSessionHandler extends stream_1.EventEmitter {
@@ -17,7 +18,7 @@ class SIPSessionHandler extends stream_1.EventEmitter {
         setInterval(this.maintainRecievedPackets.bind(this), 10000);
     }
     getPacketId(packet) {
-        let param = new sip_utils_1.FromToParam(packet.getHeaderValue("From"));
+        let param = new sip_utils_1.FromToParam(packet instanceof sip_packet_1.SIPRequestPacket && packet.method == sip_packet_1.SIPMethodType.BYE ? packet.getHeaderValue("To") : packet.getHeaderValue("From"));
         return (packet.getHeaderValue("Call-Id")) + param.addressParams.get("tag");
     }
     onRequest(packet) {
@@ -46,6 +47,8 @@ class SIPSessionHandler extends stream_1.EventEmitter {
     */
     createRequestSession({ caller, called, callId, contact }) {
         let from = sip_utils_1.FromToParam.createFromString(caller);
+        if (!from.addressParams.has("from"))
+            from.addressParams.set("from", (0, crypto_1.randomUUID)());
         let session = new SIPSession({
             to: sip_utils_1.FromToParam.createFromString(called),
             from,
@@ -118,9 +121,10 @@ class SIPSession extends stream_1.EventEmitter {
         })
             .addHeader("From", this.from.toString())
             .addHeader("To", this.to.toString())
-            .addHeader("Contact", this.contact.toString())
             .setRequestURI(ruri.toRequestURI())
             .addHeader("Call-Id", this.callId);
+        if (this.contact)
+            req.addHeader("Contact", this.contact.toString());
         for (let header of this.appendHeaders) {
             req.replaceHeader(header.name, header.value);
         }
@@ -151,7 +155,7 @@ class SIPResponseSession extends SIPSession {
             callId: packet.getHeaderValue("Call-Id"),
             from: new sip_utils_1.FromToParam(packet.getHeaderValue("From")),
             to: new sip_utils_1.FromToParam(packet.getHeaderValue("To")),
-            contact: new sip_utils_1.FromToParam(packet.getHeaderValue("Contact"))
+            contact: packet.hasHeader("Contact") ? new sip_utils_1.FromToParam(packet.getHeaderValue("Contact")) : undefined
         });
         this.once('newListener', (event) => {
             if (event === 'request') {

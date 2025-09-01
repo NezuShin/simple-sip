@@ -19,9 +19,9 @@ class SIPServer extends events_1.EventEmitter {
         this.server.on('listening', this.onServerListening.bind(this));
     }
     bind(port, address) {
+        this.externalAddres = { port, address: address || (0, sip_utils_1.getExternalAddress)() };
         address = address || "0.0.0.0";
         this.bindAddres = { port, address };
-        this.externalAddres = { port, address: address || (0, sip_utils_1.getExternalAddress)() };
         return new Promise((resolve, reject) => {
             this.server.bind(port, address || "0.0.0.0", () => {
                 resolve();

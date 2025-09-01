@@ -10,6 +10,7 @@ declare abstract class SIPPacket {
     headers: SIPHeader[];
     type: SIPPacketType;
     constructor(str: string, server: SIPServer, addrInfo: RemoteInfo);
+    hasHeader(name: string): boolean;
     getHeader(name: string): string | null;
     hashCode(): number;
     getHeaderValue(name: string): string;

@@ -20,6 +20,12 @@ class SIPPacket {
         this.parseHeaders();
         this.parseBody();
     }
+    hasHeader(name) {
+        for (let i of this.headers)
+            if (i.name == name)
+                return true;
+        return false;
+    }
     getHeader(name) {
         for (let i of this.headers) {
             if (i.name.toUpperCase() == name.toUpperCase())

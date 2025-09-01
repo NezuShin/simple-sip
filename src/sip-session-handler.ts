@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { SIPHeader, SIPPacket, SIPRequestPacket, SIPResponsePacket } from "./sip-packet";
+import { SIPHeader, SIPMethodType, SIPPacket, SIPRequestPacket, SIPResponsePacket } from "./sip-packet";
 import { FromToParam, ViaParam } from "./sip-utils";
 import { EventEmitter } from "stream";
 import { SIPServer } from "./sip-server";
@@ -31,7 +31,7 @@ class SIPSessionHandler extends EventEmitter {
     }
 
     private getPacketId(packet: SIPPacket) {
-        let param = new FromToParam(packet.getHeaderValue("From"))
+        let param = new FromToParam(packet instanceof SIPRequestPacket && packet.method == SIPMethodType.BYE ? packet.getHeaderValue("To") : packet.getHeaderValue("From"))
 
         return (packet.getHeaderValue("Call-Id")) + param.addressParams.get("tag");
     }
@@ -72,6 +72,8 @@ class SIPSessionHandler extends EventEmitter {
         callId?: string
     }) {
         let from = FromToParam.createFromString(caller);
+        if (!from.addressParams.has("from"))
+            from.addressParams.set("from", randomUUID());
         let session = new SIPSession({
             to: FromToParam.createFromString(called),
             from,
@@ -103,7 +105,7 @@ class SIPSession extends EventEmitter {
     public callId: string;
     public from: FromToParam;
     public to: FromToParam;
-    public contact: FromToParam;
+    public contact?: FromToParam;
     public appendHeaders: SIPHeader[] = [];
 
     public cSeq: number = 0;
@@ -113,7 +115,7 @@ class SIPSession extends EventEmitter {
     public handler: SIPSessionHandler;
 
     constructor({ handler, callId, from, to, contact }:
-        { handler: SIPSessionHandler, callId: string, from: FromToParam, to: FromToParam, contact: FromToParam }) {
+        { handler: SIPSessionHandler, callId: string, from: FromToParam, to: FromToParam, contact?: FromToParam }) {
         super();
         this.handler = handler;
         this.callId = callId;
@@ -165,9 +167,12 @@ class SIPSession extends EventEmitter {
             })
             .addHeader("From", this.from.toString())
             .addHeader("To", this.to.toString())
-            .addHeader("Contact", this.contact.toString())
+
             .setRequestURI(ruri.toRequestURI())
-            .addHeader("Call-Id", this.callId)
+            .addHeader("Call-Id", this.callId);
+
+        if (this.contact)
+            req.addHeader("Contact", this.contact.toString());
 
         for (let header of this.appendHeaders) {
             req.replaceHeader(header.name, header.value);
@@ -208,7 +213,7 @@ class SIPResponseSession extends SIPSession {
             callId: packet.getHeaderValue("Call-Id"),
             from: new FromToParam(packet.getHeaderValue("From")),
             to: new FromToParam(packet.getHeaderValue("To")),
-            contact: new FromToParam(packet.getHeaderValue("Contact"))
+            contact: packet.hasHeader("Contact") ? new FromToParam(packet.getHeaderValue("Contact")) : undefined
         });
         this.once('newListener', (event) => {
             if (event === 'request') {

@@ -30,10 +30,10 @@ class SIPServer extends EventEmitter {
     }
 
     public bind(port: number, address?: string | undefined | null) {
+        this.externalAddres = { port, address: address || getExternalAddress() };
         address = address || "0.0.0.0";
         this.bindAddres = { port, address };
 
-        this.externalAddres = { port, address: address || getExternalAddress() };
         return new Promise<void>((resolve, reject) => {
             this.server.bind(port, address || "0.0.0.0", () => {
                 resolve();

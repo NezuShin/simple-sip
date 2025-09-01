@@ -31,7 +31,7 @@ declare class SIPSession extends EventEmitter {
     callId: string;
     from: FromToParam;
     to: FromToParam;
-    contact: FromToParam;
+    contact?: FromToParam;
     appendHeaders: SIPHeader[];
     cSeq: number;
     lastMessageTime: number;
@@ -41,7 +41,7 @@ declare class SIPSession extends EventEmitter {
         callId: string;
         from: FromToParam;
         to: FromToParam;
-        contact: FromToParam;
+        contact?: FromToParam;
     });
     get fromTag(): string | undefined;
     get toTag(): string | undefined;

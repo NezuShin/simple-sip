@@ -45,11 +45,11 @@ class SIPSessionHandler extends stream_1.EventEmitter {
         }
     */
     createRequestSession({ caller, called, callId, contact }) {
-        let from = new sip_utils_1.FromToParam(caller);
+        let from = sip_utils_1.FromToParam.createFromString(caller);
         let session = new SIPSession({
-            to: new sip_utils_1.FromToParam(called),
+            to: sip_utils_1.FromToParam.createFromString(called),
             from,
-            contact: contact ? new sip_utils_1.FromToParam(contact) : new sip_utils_1.FromToParam(`${from.username}@${this.server.externalAddres.address}:${this.server.externalAddres.port}`),
+            contact: contact ? sip_utils_1.FromToParam.createFromString(contact) : sip_utils_1.FromToParam.createFromString(`${from.username}@${this.server.externalAddres.address}:${this.server.externalAddres.port}`),
             handler: this,
             callId: callId || (0, crypto_1.randomUUID)()
         });
@@ -110,7 +110,7 @@ class SIPSession extends stream_1.EventEmitter {
         this.emit('destroy');
     }
     createRequest({ address, port, viaBranch, cSeq, requestURI }) {
-        let ruri = requestURI ? new sip_utils_1.FromToParam(requestURI) : this.to.clone();
+        let ruri = requestURI ? sip_utils_1.FromToParam.createFromString(requestURI) : this.to.clone();
         ruri.addressParams.delete("tag");
         let req = this.handler.server.createRequest(address, port, {
             cSeqNum: cSeq ? cSeq : this.cSeq,

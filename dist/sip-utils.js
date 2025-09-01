@@ -106,6 +106,23 @@ class ViaParam {
 }
 exports.ViaParam = ViaParam;
 class FromToParam {
+    /*need to be replaced to normal simplified version
+    */
+    static createFromString(data) {
+        if (data.includes(">") || data.includes(";")) {
+            return new FromToParam(data);
+        }
+        if (!data.includes("@"))
+            return this.create({
+                username: '',
+                domain: data
+            });
+        let split = data.split("@");
+        return this.create({
+            username: split[0],
+            domain: split[1]
+        });
+    }
     static create(data) {
         let params = new FromToParam();
         let addressParams = data.addressParams || {};

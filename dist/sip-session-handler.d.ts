@@ -53,7 +53,7 @@ declare class SIPSession extends EventEmitter {
     createRequest({ address, port, viaBranch, cSeq, requestURI }: {
         address: string;
         port: number;
-        requestURI: string;
+        requestURI?: string;
         viaBranch?: string;
         cSeq?: number;
     }): import("./sip-packet-builder").SIPRequestPacketBuilder;

@@ -34,6 +34,7 @@ interface FromToParamDataCreate {
     domain: string;
 }
 declare class FromToParam {
+    static createFromString(data: string): FromToParam;
     static create(data: FromToParamDataCreate): FromToParam;
     addressParams: Map<string, string>;
     uriParams: Map<string, string>;

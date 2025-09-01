@@ -8,6 +8,7 @@ declare abstract class SIPPacketBuilder {
     body: string;
     constructor(server: SIPServer, addrInfo: AddrInfo);
     addHeader(name: string, value: any): this;
+    replaceHeader(name: string, value: any): this;
     hasHeader(name: string): boolean;
     setBody(body: string): this;
     protected abstract prepareRequestLine(): string;

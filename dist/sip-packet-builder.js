@@ -18,6 +18,11 @@ class SIPPacketBuilder {
         this.headers.push({ name, value: `${value}` });
         return this;
     }
+    replaceHeader(name, value) {
+        this.headers = this.headers.filter(i => i.name !== name);
+        this.headers.push({ name, value: `${value}` });
+        return this;
+    }
     hasHeader(name) {
         name = name.toUpperCase();
         for (let i of this.headers) {

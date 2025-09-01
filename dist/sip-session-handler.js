@@ -122,7 +122,7 @@ class SIPSession extends stream_1.EventEmitter {
             .setRequestURI(ruri.toRequestURI())
             .addHeader("Call-Id", this.callId);
         for (let header of this.appendHeaders) {
-            req.addHeader(header.name, header.value);
+            req.replaceHeader(header.name, header.value);
         }
         return req;
     }

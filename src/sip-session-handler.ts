@@ -71,11 +71,11 @@ class SIPSessionHandler extends EventEmitter {
         contact?: string,
         callId?: string
     }) {
-        let from = new FromToParam(caller);
+        let from = FromToParam.createFromString(caller);
         let session = new SIPSession({
-            to: new FromToParam(called),
+            to: FromToParam.createFromString(called),
             from,
-            contact: contact ? new FromToParam(contact) : new FromToParam(`${from.username}@${this.server.externalAddres.address}:${this.server.externalAddres.port}`),
+            contact: contact ? FromToParam.createFromString(contact) : FromToParam.createFromString(`${from.username}@${this.server.externalAddres.address}:${this.server.externalAddres.port}`),
             handler: this,
             callId: callId || randomUUID()
         });
@@ -155,8 +155,8 @@ class SIPSession extends EventEmitter {
         this.emit('destroy');
     }
 
-    public createRequest({ address, port, viaBranch, cSeq, requestURI }: { address: string, port: number, requestURI: string, viaBranch?: string, cSeq?: number }) {
-        let ruri = requestURI ? new FromToParam(requestURI) : this.to.clone();
+    public createRequest({ address, port, viaBranch, cSeq, requestURI }: { address: string, port: number, requestURI?: string, viaBranch?: string, cSeq?: number }) {
+        let ruri = requestURI ? FromToParam.createFromString(requestURI) : this.to.clone();
         ruri.addressParams.delete("tag");
         let req = this.handler.server.createRequest(address, port,
             {

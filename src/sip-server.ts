@@ -4,7 +4,7 @@ import { EventEmitter } from 'events';
 
 import { SIPResponsePacketBuilder, SIPRequestPacketBuilder, SIPRequestPacketBuilderAdditional } from './sip-packet-builder';
 import { SIPPacket, SIPRequestPacket, SIPResponsePacket, SIPHeader, SIPMethodType, SIPPacketType } from './sip-packet';
-import { FromToParam } from './sip-utils';
+import { FromToParam, getExternalAddress } from './sip-utils';
 import { randomUUID } from 'crypto';
 
 interface AddrInfo {
@@ -16,7 +16,8 @@ class SIPServer extends EventEmitter {
 
     private server: Socket;
     private currentCSeq: number = 1;
-    public bindAddres?: AddrInfo;
+    public bindAddres!: AddrInfo;
+    public externalAddres!: AddrInfo;
 
     public constructor() {
         super();
@@ -31,6 +32,8 @@ class SIPServer extends EventEmitter {
     public bind(port: number, address?: string | undefined | null) {
         address = address || "0.0.0.0";
         this.bindAddres = { port, address };
+
+        this.externalAddres = { port, address: address || getExternalAddress() };
         return new Promise<void>((resolve, reject) => {
             this.server.bind(port, address || "0.0.0.0", () => {
                 resolve();
@@ -52,8 +55,10 @@ class SIPServer extends EventEmitter {
         }
     }
 
-    public sendPacket(data: Buffer, addrInfo: AddrInfo) {
-        return new Promise<void>((resolve, reject) => {
+    public async sendPacket(data: Buffer, addrInfo: AddrInfo) {
+        if (!this.bindAddres || !this.externalAddres)
+            await this.bind(0);
+        return await new Promise<void>((resolve, reject) => {
             this.server.send(data, addrInfo.port, addrInfo.address, (err: Error | null) => {
                 if (err) {
                     reject(err);
@@ -76,10 +81,6 @@ class SIPServer extends EventEmitter {
         return new SIPRequestPacketBuilder(this, { address, port }, additional);
     }
 
-    public getLocalAddress(): string {
-        return (this.bindAddres as AddrInfo).address;
-    }
-
     public close() {
         return new Promise<void>((resolve, reject) => {
             this.server.close(() => {
@@ -91,9 +92,11 @@ class SIPServer extends EventEmitter {
     private onServerListening() {
         let address = this.server.address();
         let port = address.port;
+        this.bindAddres.port = port;
+        this.externalAddres.port = port;
         let family = address.family;
         let ipaddr = address.address;
-        console.log(`SIP server is listening at ${ipaddr}:${port}`);
+        console.log(`SIP server is listening at ${ipaddr}:${port}; Using ${this.externalAddres.address} as external address.`);
     }
 }
 

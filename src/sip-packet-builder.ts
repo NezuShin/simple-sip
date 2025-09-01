@@ -105,9 +105,9 @@ class SIPRequestPacketBuilder extends SIPPacketBuilder {
     public constructor(server: SIPServer, addrInfo: AddrInfo, additional?: SIPRequestPacketBuilderAdditional) {
         super(server, addrInfo);
         this.additional = additional || {};
+        let externalAddr = server.externalAddres;
         this.via = ViaParam.create({
-            address: server.getLocalAddress(),
-            port: server.bindAddres?.port as number,
+            ...externalAddr,
             params: {
                 rport: "",
                 branch: this.additional?.viaBranch || 'z9hG4bKn-' + randomUUID()

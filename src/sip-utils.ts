@@ -1,3 +1,4 @@
+import { NetworkInterfaceInfo, networkInterfaces } from "os";
 
 //deprecated. Need noraml version
 function parseAuthorization(string: string): { algorithm: string, realm: string, nonce: string } | undefined {
@@ -37,7 +38,7 @@ enum ViaTransport {
 }
 
 function parseAddressParams(paramsStr: string | undefined, map: Map<string, string>) {
-    if(!paramsStr || !paramsStr.length)
+    if (!paramsStr || !paramsStr.length)
         return;
     let paramName = "";
     let nameFilled = false;
@@ -290,10 +291,12 @@ class FromToParam {
     }
 }).toString())*/
 
-function parseFromTo(str: string) {
-
-
-
+function getExternalAddress(): string {
+    //Object.values(networkInterfaces()).reduce((list, val) => list?.concat(val), [])?.filter(i => i.family == 'IPv4' && !i.internal)
+    return Object.values(networkInterfaces())
+        .reduce((list, val) => list?.concat(val as NetworkInterfaceInfo[]), [])
+        ?.filter(i => i.family == 'IPv4' && !i.internal)
+        .map(i => i.address)[0] as string;
 }
 
 export {
@@ -303,5 +306,6 @@ export {
     FromToParamDataCreate,
     ViaParamDataCreate,
     FromToParam,
-    parseAuthorization
+    parseAuthorization,
+    getExternalAddress
 }

@@ -72,8 +72,8 @@ class SIPSessionHandler extends EventEmitter {
         callId?: string
     }) {
         let from = FromToParam.createFromString(caller);
-        if (!from.addressParams.has("from"))
-            from.addressParams.set("from", randomUUID());
+        if (!from.addressParams.has("tag"))
+            from.addressParams.set("tag", randomUUID());
         let session = new SIPSession({
             to: FromToParam.createFromString(called),
             from,

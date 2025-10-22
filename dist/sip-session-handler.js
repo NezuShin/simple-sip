@@ -47,8 +47,8 @@ class SIPSessionHandler extends stream_1.EventEmitter {
     */
     createRequestSession({ caller, called, callId, contact }) {
         let from = sip_utils_1.FromToParam.createFromString(caller);
-        if (!from.addressParams.has("from"))
-            from.addressParams.set("from", (0, crypto_1.randomUUID)());
+        if (!from.addressParams.has("tag"))
+            from.addressParams.set("tag", (0, crypto_1.randomUUID)());
         let session = new SIPSession({
             to: sip_utils_1.FromToParam.createFromString(called),
             from,

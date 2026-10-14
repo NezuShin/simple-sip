@@ -2,6 +2,7 @@ import { RemoteInfo } from 'dgram';
 import { SIPResponsePacketBuilder } from './sip-packet-builder';
 import { SIPPacketType, SIPMethodType, SIPHeader } from './sip-packet-helper';
 import { SIPServer } from './sip-server';
+import type { ServerTransaction } from './sip-transaction';
 declare abstract class SIPPacket {
     protected str: string;
     protected server: SIPServer;
@@ -20,6 +21,8 @@ declare abstract class SIPPacket {
 }
 declare class SIPRequestPacket extends SIPPacket {
     method: SIPMethodType;
+    /** Set by SIPTransactionManager when a server transaction is created for this request. */
+    serverTransaction?: ServerTransaction;
     constructor(str: string, server: SIPServer, addrInfo: RemoteInfo);
     private parseRequestLine;
     createResponse(): SIPResponsePacketBuilder;

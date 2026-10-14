@@ -1,15 +1,21 @@
 import { EventEmitter } from 'events';
 import { SIPRequestPacketBuilder, SIPRequestPacketBuilderAdditional } from './sip-packet-builder';
+import { SIPTransactionManager } from './sip-transaction';
+import { SIPTransactionConfig } from './sip-timers';
 interface AddrInfo {
     address: string;
     port: number;
+}
+interface SIPServerConfig {
+    transaction?: SIPTransactionConfig;
 }
 declare class SIPServer extends EventEmitter {
     private server;
     private currentCSeq;
     bindAddres: AddrInfo;
     externalAddres: AddrInfo;
-    constructor();
+    transactions: SIPTransactionManager;
+    constructor(config?: SIPServerConfig);
     bind(port: number, address?: string | undefined | null): Promise<void>;
     private onMessage;
     sendPacket(data: Buffer, addrInfo: AddrInfo): Promise<void>;
@@ -19,5 +25,5 @@ declare class SIPServer extends EventEmitter {
     close(): Promise<void>;
     private onServerListening;
 }
-export { SIPServer, AddrInfo, };
+export { SIPServer, SIPServerConfig, AddrInfo, };
 //# sourceMappingURL=sip-server.d.ts.map

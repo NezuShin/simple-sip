@@ -36,9 +36,10 @@ class SIPPacketBuilder {
         return this;
     }
     async send() {
-        await this.server.sendPacket(Buffer.from(this.preparePacket()), this.addrInfo);
+        await this.server.sendPacket(Buffer.from(this.buildPacket()), this.addrInfo);
     }
-    preparePacket() {
+    /** Materialize the full SIP message (side-effect: may add Via/CSeq/Content-Length on requests). */
+    buildPacket() {
         let str = this.prepareRequestLine() + "\r\n";
         for (let i of this.prepareHeaders()) {
             str += `${i.name}: ${i.value}\r\n`;
@@ -52,8 +53,13 @@ exports.SIPPacketBuilder = SIPPacketBuilder;
 class SIPResponsePacketBuilder extends SIPPacketBuilder {
     statusCode = 200;
     statusText = null;
+    serverTransaction;
     constructor(server, addrInfo) {
         super(server, addrInfo);
+    }
+    setServerTransaction(tx) {
+        this.serverTransaction = tx;
+        return this;
     }
     setStatusCode(statusCode) {
         this.statusCode = statusCode;
@@ -68,6 +74,13 @@ class SIPResponsePacketBuilder extends SIPPacketBuilder {
     }
     prepareRequestLine() {
         return `SIP/2.0 ${this.statusCode} ${this.statusText || sip_codes_1.SIPCodes.getCodeName(this.statusCode)}`;
+    }
+    async send() {
+        if (this.serverTransaction) {
+            await this.server.transactions.sendResponse(this.serverTransaction, this);
+            return;
+        }
+        await super.send();
     }
 }
 exports.SIPResponsePacketBuilder = SIPResponsePacketBuilder;
@@ -97,19 +110,30 @@ class SIPRequestPacketBuilder extends SIPPacketBuilder {
         return this;
     }
     prepareHeaders() {
-        let headers = [...this.headers];
+        // Persist auto-headers so repeated materialization does not bump CSeq again.
         if (!this.hasHeader("CSeq"))
-            headers.push({ name: "CSeq", value: `${this.additional.cSeqNum || this.server.nextCSeq()} ${this.method}` });
+            this.headers.push({ name: "CSeq", value: `${this.additional.cSeqNum || this.server.nextCSeq()} ${this.method}` });
         if (!this.hasHeader("Via")) {
-            headers.push({ name: "Via", value: this.via.toString() });
+            this.headers.push({ name: "Via", value: this.via.toString() });
         }
         if (!this.hasHeader("Content-Length")) {
-            headers.push({ name: "Content-Length", value: `${Buffer.from(this.body, 'utf8').length}` });
+            this.headers.push({ name: "Content-Length", value: `${Buffer.from(this.body, 'utf8').length}` });
         }
-        return headers;
+        return [...this.headers];
+    }
+    /** Headers after Via/CSeq/Content-Length materialization (safe to call after buildPacket). */
+    prepareHeadersPublic() {
+        return this.prepareHeaders();
     }
     prepareRequestLine() {
         return `${this.method} ${this.requestURI} SIP/2.0`;
+    }
+    /**
+     * Send via the RFC 3261 client transaction layer (retransmits / matching).
+     * Do not use for ACK — call send() instead.
+     */
+    sendTransaction() {
+        return this.server.transactions.sendRequest(this);
     }
 }
 exports.SIPRequestPacketBuilder = SIPRequestPacketBuilder;

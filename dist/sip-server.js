@@ -6,17 +6,20 @@ const events_1 = require("events");
 const sip_packet_builder_1 = require("./sip-packet-builder");
 const sip_packet_1 = require("./sip-packet");
 const sip_utils_1 = require("./sip-utils");
+const sip_transaction_1 = require("./sip-transaction");
 class SIPServer extends events_1.EventEmitter {
     server;
     currentCSeq = 1;
     bindAddres;
     externalAddres;
-    constructor() {
+    transactions;
+    constructor(config) {
         super();
         this.server = (0, dgram_1.createSocket)('udp4');
         this.server.on('message', this.onMessage.bind(this));
         this.server.on('error', this.onError.bind(this));
         this.server.on('listening', this.onServerListening.bind(this));
+        this.transactions = new sip_transaction_1.SIPTransactionManager(this, config?.transaction);
     }
     bind(port, address) {
         this.externalAddres = { port, address: address || (0, sip_utils_1.getExternalAddress)() };

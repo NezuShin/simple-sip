@@ -76,6 +76,8 @@ class SIPPacket {
 exports.SIPPacket = SIPPacket;
 class SIPRequestPacket extends SIPPacket {
     method = sip_packet_helper_1.SIPMethodType.INFO;
+    /** Set by SIPTransactionManager when a server transaction is created for this request. */
+    serverTransaction;
     constructor(str, server, addrInfo) {
         super(str, server, addrInfo);
         this.type = sip_packet_helper_1.SIPPacketType.Request;
@@ -94,8 +96,11 @@ class SIPRequestPacket extends SIPPacket {
             }
             ;
         }
-        return new sip_packet_builder_1.SIPResponsePacketBuilder(this.server, this.addrInfo).addHeader("From", this.getHeaderValue("From")).addHeader("To", this.getHeaderValue("To"))
+        const builder = new sip_packet_builder_1.SIPResponsePacketBuilder(this.server, this.addrInfo).addHeader("From", this.getHeaderValue("From")).addHeader("To", this.getHeaderValue("To"))
             .addHeader("Via", via.toString()).addHeader("CSeq", this.getHeaderValue("CSeq")).addHeader("Call-Id", this.getHeaderValue("Call-Id"));
+        if (this.serverTransaction)
+            builder.setServerTransaction(this.serverTransaction);
+        return builder;
     }
 }
 exports.SIPRequestPacket = SIPRequestPacket;

@@ -3,6 +3,7 @@ import { SIPResponsePacketBuilder } from './sip-packet-builder';
 import { SIPPacketType, SIPMethodType, SIPHeader, HeaderNotFoundError } from './sip-packet-helper';
 import { SIPServer } from './sip-server';
 import { ViaParam } from './sip-utils';
+import type { ServerTransaction } from './sip-transaction';
 
 abstract class SIPPacket {
 
@@ -91,6 +92,8 @@ abstract class SIPPacket {
 
 class SIPRequestPacket extends SIPPacket {
     public method: SIPMethodType = SIPMethodType.INFO;
+    /** Set by SIPTransactionManager when a server transaction is created for this request. */
+    public serverTransaction?: ServerTransaction;
 
     public constructor(str: string, server: SIPServer, addrInfo: RemoteInfo) {
         super(str, server, addrInfo);
@@ -113,8 +116,13 @@ class SIPRequestPacket extends SIPPacket {
             };
         }
 
-        return new SIPResponsePacketBuilder(this.server, this.addrInfo).addHeader("From", this.getHeaderValue("From")).addHeader("To", this.getHeaderValue("To"))
+        const builder = new SIPResponsePacketBuilder(this.server, this.addrInfo).addHeader("From", this.getHeaderValue("From")).addHeader("To", this.getHeaderValue("To"))
             .addHeader("Via", via.toString()).addHeader("CSeq", this.getHeaderValue("CSeq")).addHeader("Call-Id", this.getHeaderValue("Call-Id"));
+
+        if (this.serverTransaction)
+            builder.setServerTransaction(this.serverTransaction);
+
+        return builder;
     }
 
 }

@@ -1,18 +1,21 @@
 import { randomUUID } from "crypto";
 import { SIPHeader, SIPMethodType, SIPPacket, SIPRequestPacket, SIPResponsePacket } from "./sip-packet";
-import { FromToParam, ViaParam } from "./sip-utils";
+import { FromToParam } from "./sip-utils";
 import { EventEmitter } from "stream";
 import { SIPServer } from "./sip-server";
-import { SIPRequestPacketBuilderAdditional } from "./sip-packet-builder";
+import { ClientTransaction, ServerTransaction } from "./sip-transaction";
 
 interface SIPSessionHandlerConfig {
     recievedPacketTTL?: number,
-    sessionTTL?: number
+    sessionTTL?: number,
+    /** When true (default), listen to the transaction layer instead of raw socket events. */
+    useTransactions?: boolean
 }
 
 interface SIPSessionHandlerInternalConfig {
     recievedPacketTTL: number,
-    sessionTTL: number
+    sessionTTL: number,
+    useTransactions: boolean
 }
 
 
@@ -23,10 +26,26 @@ class SIPSessionHandler extends EventEmitter {
 
     constructor(server: SIPServer, config?: SIPSessionHandlerConfig) {
         super();
-        this.config = (config || { recievedPacketTTL: 20000, sessionTTL: 60000 }) as SIPSessionHandlerInternalConfig;
+        this.config = {
+            recievedPacketTTL: config?.recievedPacketTTL ?? 20000,
+            sessionTTL: config?.sessionTTL ?? 60000,
+            useTransactions: config?.useTransactions ?? true,
+        };
         this.server = server;
-        this.server.on("request", this.onRequest.bind(this));
-        this.server.on("response", this.onResponse.bind(this));
+
+        if (this.config.useTransactions) {
+            this.server.transactions.on("new-request", this.onRequest.bind(this));
+            this.server.transactions.on("response", (packet: SIPResponsePacket, _tx?: ClientTransaction) => {
+                this.onResponse(packet);
+            });
+            this.server.transactions.on("timeout", (tx: ClientTransaction) => {
+                this.emit("transaction-timeout", tx);
+            });
+        } else {
+            this.server.on("request", this.onRequest.bind(this));
+            this.server.on("response", this.onResponse.bind(this));
+        }
+
         setInterval(this.maintainRecievedPackets.bind(this), 10000);
     }
 
@@ -36,7 +55,7 @@ class SIPSessionHandler extends EventEmitter {
         return (packet.getHeaderValue("Call-Id")) + param.addressParams.get("tag");
     }
 
-    private onRequest(packet: SIPRequestPacket) {
+    private onRequest(packet: SIPRequestPacket, _serverTx?: ServerTransaction) {
         let packetId = this.getPacketId(packet);
         let session = this.sessions.filter(i => i.id == packetId)[0];
         if (!session) {
@@ -229,5 +248,6 @@ class SIPResponseSession extends SIPSession {
 
 export {
     SIPResponseSession,
-    SIPSessionHandler
+    SIPSessionHandler,
+    SIPSessionHandlerConfig
 }

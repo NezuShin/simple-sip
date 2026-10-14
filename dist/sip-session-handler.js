@@ -11,17 +11,32 @@ class SIPSessionHandler extends stream_1.EventEmitter {
     config;
     constructor(server, config) {
         super();
-        this.config = (config || { recievedPacketTTL: 20000, sessionTTL: 60000 });
+        this.config = {
+            recievedPacketTTL: config?.recievedPacketTTL ?? 20000,
+            sessionTTL: config?.sessionTTL ?? 60000,
+            useTransactions: config?.useTransactions ?? true,
+        };
         this.server = server;
-        this.server.on("request", this.onRequest.bind(this));
-        this.server.on("response", this.onResponse.bind(this));
+        if (this.config.useTransactions) {
+            this.server.transactions.on("new-request", this.onRequest.bind(this));
+            this.server.transactions.on("response", (packet, _tx) => {
+                this.onResponse(packet);
+            });
+            this.server.transactions.on("timeout", (tx) => {
+                this.emit("transaction-timeout", tx);
+            });
+        }
+        else {
+            this.server.on("request", this.onRequest.bind(this));
+            this.server.on("response", this.onResponse.bind(this));
+        }
         setInterval(this.maintainRecievedPackets.bind(this), 10000);
     }
     getPacketId(packet) {
         let param = new sip_utils_1.FromToParam(packet instanceof sip_packet_1.SIPRequestPacket && packet.method == sip_packet_1.SIPMethodType.BYE ? packet.getHeaderValue("To") : packet.getHeaderValue("From"));
         return (packet.getHeaderValue("Call-Id")) + param.addressParams.get("tag");
     }
-    onRequest(packet) {
+    onRequest(packet, _serverTx) {
         let packetId = this.getPacketId(packet);
         let session = this.sessions.filter(i => i.id == packetId)[0];
         if (!session) {

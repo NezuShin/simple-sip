@@ -3,6 +3,7 @@ import { AddrInfo, SIPServer } from './sip-server'
 import { SIPCodes } from './sip-codes'
 import { ViaParam } from './sip-utils';
 import { randomUUID } from 'crypto';
+import type { ClientTransaction, ServerTransaction } from './sip-transaction';
 
 
 abstract class SIPPacketBuilder {
@@ -46,12 +47,13 @@ abstract class SIPPacketBuilder {
 
 
     public async send() {
-        await this.server.sendPacket(Buffer.from(this.preparePacket()), this.addrInfo);
+        await this.server.sendPacket(Buffer.from(this.buildPacket()), this.addrInfo);
     }
 
     protected abstract prepareHeaders(): SIPHeader[];
 
-    protected preparePacket(): string {
+    /** Materialize the full SIP message (side-effect: may add Via/CSeq/Content-Length on requests). */
+    public buildPacket(): string {
         let str = this.prepareRequestLine() + "\r\n";
 
         for (let i of this.prepareHeaders()) {
@@ -70,11 +72,16 @@ class SIPResponsePacketBuilder extends SIPPacketBuilder {
 
     public statusCode: number = 200;
     public statusText: string | null = null;
+    public serverTransaction?: ServerTransaction;
 
     public constructor(server: SIPServer, addrInfo: AddrInfo) {
         super(server, addrInfo);
     }
 
+    public setServerTransaction(tx: ServerTransaction) {
+        this.serverTransaction = tx;
+        return this;
+    }
 
     public setStatusCode(statusCode: number) {
         this.statusCode = statusCode;
@@ -92,6 +99,14 @@ class SIPResponsePacketBuilder extends SIPPacketBuilder {
 
     protected prepareRequestLine() {
         return `SIP/2.0 ${this.statusCode} ${this.statusText || SIPCodes.getCodeName(this.statusCode)}`;
+    }
+
+    public async send() {
+        if (this.serverTransaction) {
+            await this.server.transactions.sendResponse(this.serverTransaction, this);
+            return;
+        }
+        await super.send();
     }
 
 }
@@ -132,23 +147,35 @@ class SIPRequestPacketBuilder extends SIPPacketBuilder {
     }
 
     protected prepareHeaders(): SIPHeader[] {
-        let headers = [...this.headers];
+        // Persist auto-headers so repeated materialization does not bump CSeq again.
         if (!this.hasHeader("CSeq"))
-            headers.push({ name: "CSeq", value: `${this.additional.cSeqNum || this.server.nextCSeq()} ${this.method}` });
+            this.headers.push({ name: "CSeq", value: `${this.additional.cSeqNum || this.server.nextCSeq()} ${this.method}` });
 
         if (!this.hasHeader("Via")) {
-            headers.push({ name: "Via", value: this.via.toString() });
+            this.headers.push({ name: "Via", value: this.via.toString() });
         }
         if (!this.hasHeader("Content-Length")) {
-            headers.push({ name: "Content-Length", value: `${Buffer.from(this.body, 'utf8').length}` });
+            this.headers.push({ name: "Content-Length", value: `${Buffer.from(this.body, 'utf8').length}` });
         }
 
+        return [...this.headers];
+    }
 
-        return headers;
+    /** Headers after Via/CSeq/Content-Length materialization (safe to call after buildPacket). */
+    public prepareHeadersPublic(): SIPHeader[] {
+        return this.prepareHeaders();
     }
 
     protected prepareRequestLine() {
         return `${this.method} ${this.requestURI} SIP/2.0`;
+    }
+
+    /**
+     * Send via the RFC 3261 client transaction layer (retransmits / matching).
+     * Do not use for ACK — call send() instead.
+     */
+    public sendTransaction(): ClientTransaction {
+        return this.server.transactions.sendRequest(this);
     }
 }
 

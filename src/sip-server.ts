@@ -2,14 +2,19 @@ import { RemoteInfo, Socket, createSocket } from 'dgram';
 import { EventEmitter } from 'events';
 
 
-import { SIPResponsePacketBuilder, SIPRequestPacketBuilder, SIPRequestPacketBuilderAdditional } from './sip-packet-builder';
-import { SIPPacket, SIPRequestPacket, SIPResponsePacket, SIPHeader, SIPMethodType, SIPPacketType } from './sip-packet';
-import { FromToParam, getExternalAddress } from './sip-utils';
-import { randomUUID } from 'crypto';
+import { SIPRequestPacketBuilder, SIPRequestPacketBuilderAdditional } from './sip-packet-builder';
+import { SIPPacket, SIPPacketType } from './sip-packet';
+import { getExternalAddress } from './sip-utils';
+import { SIPTransactionManager } from './sip-transaction';
+import { SIPTransactionConfig } from './sip-timers';
 
 interface AddrInfo {
     address: string,
     port: number
+}
+
+interface SIPServerConfig {
+    transaction?: SIPTransactionConfig
 }
 
 class SIPServer extends EventEmitter {
@@ -18,8 +23,9 @@ class SIPServer extends EventEmitter {
     private currentCSeq: number = 1;
     public bindAddres!: AddrInfo;
     public externalAddres!: AddrInfo;
+    public transactions: SIPTransactionManager;
 
-    public constructor() {
+    public constructor(config?: SIPServerConfig) {
         super();
 
 
@@ -27,6 +33,7 @@ class SIPServer extends EventEmitter {
         this.server.on('message', this.onMessage.bind(this));
         this.server.on('error', this.onError.bind(this));
         this.server.on('listening', this.onServerListening.bind(this));
+        this.transactions = new SIPTransactionManager(this, config?.transaction);
     }
 
     public bind(port: number, address?: string | undefined | null) {
@@ -105,5 +112,6 @@ class SIPServer extends EventEmitter {
 
 export {
     SIPServer,
+    SIPServerConfig,
     AddrInfo,
 }

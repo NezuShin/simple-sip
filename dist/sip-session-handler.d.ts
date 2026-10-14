@@ -5,10 +5,13 @@ import { SIPServer } from "./sip-server";
 interface SIPSessionHandlerConfig {
     recievedPacketTTL?: number;
     sessionTTL?: number;
+    /** When true (default), listen to the transaction layer instead of raw socket events. */
+    useTransactions?: boolean;
 }
 interface SIPSessionHandlerInternalConfig {
     recievedPacketTTL: number;
     sessionTTL: number;
+    useTransactions: boolean;
 }
 declare class SIPSessionHandler extends EventEmitter {
     sessions: SIPResponseSession[];
@@ -66,5 +69,5 @@ declare class SIPResponseSession extends SIPSession {
         handler: SIPSessionHandler;
     });
 }
-export { SIPResponseSession, SIPSessionHandler };
+export { SIPResponseSession, SIPSessionHandler, SIPSessionHandlerConfig };
 //# sourceMappingURL=sip-session-handler.d.ts.map

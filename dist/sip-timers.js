@@ -22,6 +22,8 @@ function resolveTransactionConfig(partial) {
         serverRetransmit: partial?.serverRetransmit ?? true,
         invite2xxServerRetransmit: partial?.invite2xxServerRetransmit ?? true,
         enabled: partial?.enabled ?? true,
+        non2xxAckMode: partial?.non2xxAckMode ?? "auto",
+        non2xxAckCustomize: partial?.non2xxAckCustomize,
     };
 }
 /** Named timeout registry; all cleared on terminate. */

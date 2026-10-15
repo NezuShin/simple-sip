@@ -2,7 +2,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SIPSessionHandler = exports.SIPResponseSession = void 0;
 const crypto_1 = require("crypto");
-const sip_packet_1 = require("./sip-packet");
 const sip_utils_1 = require("./sip-utils");
 const stream_1 = require("stream");
 class SIPSessionHandler extends stream_1.EventEmitter {
@@ -32,13 +31,11 @@ class SIPSessionHandler extends stream_1.EventEmitter {
         }
         setInterval(this.maintainRecievedPackets.bind(this), 10000);
     }
-    getPacketId(packet) {
-        let param = new sip_utils_1.FromToParam(packet instanceof sip_packet_1.SIPRequestPacket && packet.method == sip_packet_1.SIPMethodType.BYE ? packet.getHeaderValue("To") : packet.getHeaderValue("From"));
-        return (packet.getHeaderValue("Call-Id")) + param.addressParams.get("tag");
+    findSession(packet) {
+        return this.sessions.find(s => s.matchesPacket(packet));
     }
     onRequest(packet, _serverTx) {
-        let packetId = this.getPacketId(packet);
-        let session = this.sessions.filter(i => i.id == packetId)[0];
+        let session = this.findSession(packet);
         if (!session) {
             session = new SIPResponseSession({ packet, handler: this });
             this.emit("response-session", session);
@@ -48,9 +45,8 @@ class SIPSessionHandler extends stream_1.EventEmitter {
         session.onRequest(packet);
     }
     onResponse(packet) {
-        let packetId = this.getPacketId(packet);
-        let session = this.sessions.filter(i => i.id == packetId)[0];
-        if (!!session)
+        let session = this.findSession(packet);
+        if (session)
             session.onResponse(packet);
     }
     /*
@@ -112,6 +108,17 @@ class SIPSession extends stream_1.EventEmitter {
     }
     get id() {
         return this.callId + this.fromTag; // + this.toTag;
+    }
+    /** True if packet Call-Id/From/To tags belong to this session (same or swapped tags). */
+    matchesPacket(packet) {
+        if (packet.getHeaderValue("Call-Id") !== this.callId)
+            return false;
+        const fromTag = new sip_utils_1.FromToParam(packet.getHeaderValue("From")).addressParams.get("tag");
+        const toTag = new sip_utils_1.FromToParam(packet.getHeaderValue("To")).addressParams.get("tag");
+        if (!this.toTag)
+            return fromTag === this.fromTag || toTag === this.fromTag;
+        return (fromTag === this.fromTag && toTag === this.toTag)
+            || (fromTag === this.toTag && toTag === this.fromTag);
     }
     nextCSeq() {
         this.cSeq = this.handler.server.nextCSeq();

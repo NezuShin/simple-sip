@@ -33,7 +33,8 @@ declare abstract class ClientTransaction extends SIPTransaction {
     constructor(manager: SIPTransactionManager, id: string, method: SIPMethodType, branch: string, state: ClientTxState, request: OutboundRequestSnapshot);
     abstract receiveResponse(packet: SIPResponsePacket): void;
     protected transportSend(buffer: Buffer): Promise<void>;
-    protected buildNon2xxAck(response: SIPResponsePacket): Buffer;
+    /** Fire-and-forget send; transport-error / terminate already handled inside transportSend. */
+    protected fireTransportSend(buffer: Buffer): void;
 }
 declare abstract class ServerTransaction extends SIPTransaction {
     readonly request: SIPRequestPacket;
@@ -45,17 +46,29 @@ declare abstract class ServerTransaction extends SIPTransaction {
     abstract receiveAck(packet: SIPRequestPacket): void;
     abstract sendResponse(builder: SIPResponsePacketBuilder): Promise<void>;
     protected transportSend(buffer: Buffer): Promise<void>;
+    /** Fire-and-forget send; transport-error / terminate already handled inside transportSend. */
+    protected fireTransportSend(buffer: Buffer): void;
     protected captureResponse(builder: SIPResponsePacketBuilder): Buffer<ArrayBufferLike>;
 }
+type Non2xxAckCustomize = (tx: InviteClientTransaction, response: SIPResponsePacket, builder: SIPRequestPacketBuilder) => SIPRequestPacketBuilder | void | Promise<SIPRequestPacketBuilder | void>;
 /** INVITE client transaction — RFC 3261 §17.1.1 */
 declare class InviteClientTransaction extends ClientTransaction {
     private timerAInterval;
+    private lastAckBuffer;
     constructor(manager: SIPTransactionManager, request: OutboundRequestSnapshot);
     private startCalling;
     private shouldRetransmit;
     private scheduleTimerA;
     private onTimerA;
     private onTimerB;
+    createNon2xxAckBuilder(response: SIPResponsePacket): SIPRequestPacketBuilder;
+    sendAck(ack: SIPRequestPacketBuilder | Buffer): void;
+    /** Cache ACK after a hand `builder.send()` so Completed retransmits can resend it. */
+    noteAckSent(buffer: Buffer): void;
+    private prepareAck;
+    private dispatchNon2xxAck;
+    private emitNon2xxFinal;
+    private onNon2xxAckError;
     receiveResponse(packet: SIPResponsePacket): void;
 }
 /** Non-INVITE client transaction — RFC 3261 §17.1.2 */
@@ -99,5 +112,5 @@ declare class SIPTransactionManager extends EventEmitter {
     private onRequest;
     private onResponse;
 }
-export { SIPTransactionManager, ClientTransaction, ServerTransaction, InviteClientTransaction, NonInviteClientTransaction, InviteServerTransaction, NonInviteServerTransaction, SIPTransactionConfig, };
+export { SIPTransactionManager, ClientTransaction, ServerTransaction, InviteClientTransaction, NonInviteClientTransaction, InviteServerTransaction, NonInviteServerTransaction, SIPTransactionConfig, Non2xxAckCustomize, };
 //# sourceMappingURL=sip-transaction.d.ts.map

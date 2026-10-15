@@ -72,26 +72,12 @@ class ClientTransaction extends SIPTransaction {
         catch (err) {
             this.emit("transport-error", err);
             this.terminate();
+            throw err;
         }
     }
-    buildNon2xxAck(response) {
-        const to = response.getHeaderValue("To");
-        const from = headerValue(this.request.headers, "From") || "";
-        const callId = headerValue(this.request.headers, "Call-Id") || headerValue(this.request.headers, "Call-ID") || "";
-        const maxForwards = headerValue(this.request.headers, "Max-Forwards") || "70";
-        const lines = [
-            `ACK ${this.request.requestURI} SIP/2.0`,
-            `Via: ${this.request.viaValue}`,
-            `Max-Forwards: ${maxForwards}`,
-            `From: ${from}`,
-            `To: ${to}`,
-            `Call-Id: ${callId}`,
-            `CSeq: ${this.request.cseqNum} ACK`,
-            `Content-Length: 0`,
-            "",
-            "",
-        ];
-        return Buffer.from(lines.join("\r\n"), "utf8");
+    /** Fire-and-forget send; transport-error / terminate already handled inside transportSend. */
+    fireTransportSend(buffer) {
+        void this.transportSend(buffer).catch(() => { });
     }
 }
 exports.ClientTransaction = ClientTransaction;
@@ -112,7 +98,12 @@ class ServerTransaction extends SIPTransaction {
         catch (err) {
             this.emit("transport-error", err);
             this.terminate();
+            throw err;
         }
+    }
+    /** Fire-and-forget send; transport-error / terminate already handled inside transportSend. */
+    fireTransportSend(buffer) {
+        void this.transportSend(buffer).catch(() => { });
     }
     captureResponse(builder) {
         const packet = builder.buildPacket();
@@ -134,6 +125,7 @@ class DisabledClientTransaction extends ClientTransaction {
 /** INVITE client transaction — RFC 3261 §17.1.1 */
 class InviteClientTransaction extends ClientTransaction {
     timerAInterval;
+    lastAckBuffer = null;
     constructor(manager, request) {
         const id = clientMatchKey(request.branch, request.method);
         super(manager, id, request.method, request.branch, "Calling", request);
@@ -141,7 +133,7 @@ class InviteClientTransaction extends ClientTransaction {
         this.startCalling();
     }
     startCalling() {
-        void this.transportSend(this.request.buffer);
+        this.fireTransportSend(this.request.buffer);
         if (this.shouldRetransmit()) {
             this.scheduleTimerA();
         }
@@ -156,7 +148,7 @@ class InviteClientTransaction extends ClientTransaction {
     onTimerA() {
         if (this.state !== "Calling")
             return;
-        void this.transportSend(this.request.buffer);
+        this.fireTransportSend(this.request.buffer);
         this.timerAInterval = Math.min(this.timerAInterval * 2, this.config.timerT2);
         this.scheduleTimerA();
     }
@@ -166,6 +158,65 @@ class InviteClientTransaction extends ClientTransaction {
             this.manager.emit("timeout", this);
             this.terminate();
         }
+    }
+    createNon2xxAckBuilder(response) {
+        const from = headerValue(this.request.headers, "From") || "";
+        const callId = headerValue(this.request.headers, "Call-Id") || headerValue(this.request.headers, "Call-ID") || "";
+        const maxForwards = headerValue(this.request.headers, "Max-Forwards") || "70";
+        const to = response.getHeaderValue("To");
+        return this.manager.server
+            .createRequest(this.addrInfo.address, this.addrInfo.port, {
+            viaBranch: this.request.branch,
+            cSeqNum: this.request.cseqNum,
+        })
+            .setMethod(sip_packet_helper_1.SIPMethodType.ACK)
+            .setRequestURI(this.request.requestURI)
+            .replaceHeader("Via", this.request.viaValue)
+            .addHeader("Max-Forwards", maxForwards)
+            .addHeader("From", from)
+            .addHeader("To", to)
+            .addHeader("Call-Id", callId);
+    }
+    sendAck(ack) {
+        const buffer = Buffer.isBuffer(ack) ? ack : Buffer.from(ack.buildPacket(), "utf8");
+        this.lastAckBuffer = buffer;
+        this.fireTransportSend(buffer);
+    }
+    /** Cache ACK after a hand `builder.send()` so Completed retransmits can resend it. */
+    noteAckSent(buffer) {
+        this.lastAckBuffer = buffer;
+    }
+    async prepareAck(response) {
+        let builder = this.createNon2xxAckBuilder(response);
+        const customize = this.config.non2xxAckCustomize;
+        if (customize) {
+            const customized = await customize(this, response, builder);
+            if (customized)
+                builder = customized;
+        }
+        return builder;
+    }
+    async dispatchNon2xxAck(response) {
+        if (this.lastAckBuffer) {
+            this.fireTransportSend(this.lastAckBuffer);
+            return;
+        }
+        const builder = await this.prepareAck(response);
+        if (this.config.non2xxAckMode === "manual") {
+            const payload = { response, builder };
+            this.emit("need-ack", payload);
+            this.manager.emit("need-ack", this, payload);
+            return;
+        }
+        this.sendAck(builder);
+    }
+    emitNon2xxFinal(packet) {
+        this.emit("final", packet);
+        this.manager.emit("response", packet, this);
+    }
+    onNon2xxAckError(err) {
+        this.emit("ack-error", err);
+        this.manager.emit("ack-error", this, err);
     }
     receiveResponse(packet) {
         const code = packet.statusCode;
@@ -192,13 +243,13 @@ class InviteClientTransaction extends ClientTransaction {
                 this.timers.clear("A");
                 this.timers.clear("B");
                 this.state = "Completed";
-                void this.transportSend(this.buildNon2xxAck(packet));
-                this.emit("final", packet);
-                this.manager.emit("response", packet, this);
                 this.timers.set("D", this.config.timerD, () => this.terminate());
+                void this.dispatchNon2xxAck(packet)
+                    .catch((err) => this.onNon2xxAckError(err))
+                    .finally(() => this.emitNon2xxFinal(packet));
             }
             else if (this.state === "Completed") {
-                void this.transportSend(this.buildNon2xxAck(packet));
+                void this.dispatchNon2xxAck(packet).catch((err) => this.onNon2xxAckError(err));
             }
         }
     }
@@ -214,7 +265,7 @@ class NonInviteClientTransaction extends ClientTransaction {
         this.startTrying();
     }
     startTrying() {
-        void this.transportSend(this.request.buffer);
+        this.fireTransportSend(this.request.buffer);
         if (this.shouldRetransmit()) {
             this.scheduleTimerE();
         }
@@ -229,7 +280,7 @@ class NonInviteClientTransaction extends ClientTransaction {
     onTimerE() {
         if (this.state !== "Trying" && this.state !== "Proceeding")
             return;
-        void this.transportSend(this.request.buffer);
+        this.fireTransportSend(this.request.buffer);
         this.timerEInterval = this.state === "Trying"
             ? Math.min(this.timerEInterval * 2, this.config.timerT2)
             : this.config.timerT2;
@@ -280,14 +331,14 @@ class InviteServerTransaction extends ServerTransaction {
             return;
         if (this.state === "Proceeding" || this.state === "Accepted") {
             if (this.lastStatusCode >= 100 && this.lastStatusCode < 200) {
-                void this.transportSend(this.lastResponseBuffer);
+                this.fireTransportSend(this.lastResponseBuffer);
             }
             else if (this.state === "Accepted" && this.config.invite2xxServerRetransmit) {
-                void this.transportSend(this.lastResponseBuffer);
+                this.fireTransportSend(this.lastResponseBuffer);
             }
         }
         else if (this.state === "Completed" && this.config.serverRetransmit) {
-            void this.transportSend(this.lastResponseBuffer);
+            this.fireTransportSend(this.lastResponseBuffer);
         }
     }
     receiveAck(_packet) {
@@ -339,7 +390,7 @@ class InviteServerTransaction extends ServerTransaction {
     onTimerG() {
         if (this.state !== "Completed" || !this.lastResponseBuffer)
             return;
-        void this.transportSend(this.lastResponseBuffer);
+        this.fireTransportSend(this.lastResponseBuffer);
         this.timerGInterval = Math.min(this.timerGInterval * 2, this.config.timerT2);
         this.scheduleTimerG();
     }
@@ -356,7 +407,7 @@ class NonInviteServerTransaction extends ServerTransaction {
         if (!this.lastResponseBuffer)
             return;
         if ((this.state === "Completed" || this.state === "Proceeding") && this.config.serverRetransmit) {
-            void this.transportSend(this.lastResponseBuffer);
+            this.fireTransportSend(this.lastResponseBuffer);
         }
     }
     receiveAck(_packet) {
@@ -401,8 +452,11 @@ class SIPTransactionManager extends events_1.EventEmitter {
         }
         const snapshot = this.snapshotOutbound(builder);
         if (!this.config.enabled) {
-            void this.server.sendPacket(snapshot.buffer, snapshot.addrInfo);
-            return new DisabledClientTransaction(this, snapshot);
+            const tx = new DisabledClientTransaction(this, snapshot);
+            void this.server.sendPacket(snapshot.buffer, snapshot.addrInfo).catch((err) => {
+                tx.emit("transport-error", err);
+            });
+            return tx;
         }
         const existing = this.clientTxs.get(clientMatchKey(snapshot.branch, snapshot.method));
         if (existing)

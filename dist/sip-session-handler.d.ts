@@ -1,4 +1,4 @@
-import { SIPHeader, SIPRequestPacket, SIPResponsePacket } from "./sip-packet";
+import { SIPHeader, SIPPacket, SIPRequestPacket, SIPResponsePacket } from "./sip-packet";
 import { FromToParam } from "./sip-utils";
 import { EventEmitter } from "stream";
 import { SIPServer } from "./sip-server";
@@ -18,7 +18,7 @@ declare class SIPSessionHandler extends EventEmitter {
     server: SIPServer;
     config: SIPSessionHandlerInternalConfig;
     constructor(server: SIPServer, config?: SIPSessionHandlerConfig);
-    private getPacketId;
+    private findSession;
     private onRequest;
     private onResponse;
     createRequestSession({ caller, called, callId, contact }: {
@@ -49,6 +49,8 @@ declare class SIPSession extends EventEmitter {
     get fromTag(): string | undefined;
     get toTag(): string | undefined;
     get id(): string;
+    /** True if packet Call-Id/From/To tags belong to this session (same or swapped tags). */
+    matchesPacket(packet: SIPPacket): boolean;
     nextCSeq(): void;
     appendHeader(name: string, value: string): void;
     replaceHeader(name: string, value: string): void;

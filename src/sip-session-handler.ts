@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { SIPHeader, SIPMethodType, SIPPacket, SIPRequestPacket, SIPResponsePacket } from "./sip-packet";
+import { SIPHeader, SIPPacket, SIPRequestPacket, SIPResponsePacket } from "./sip-packet";
 import { FromToParam } from "./sip-utils";
 import { EventEmitter } from "stream";
 import { SIPServer } from "./sip-server";
@@ -49,15 +49,12 @@ class SIPSessionHandler extends EventEmitter {
         setInterval(this.maintainRecievedPackets.bind(this), 10000);
     }
 
-    private getPacketId(packet: SIPPacket) {
-        let param = new FromToParam(packet instanceof SIPRequestPacket && packet.method == SIPMethodType.BYE ? packet.getHeaderValue("To") : packet.getHeaderValue("From"))
-
-        return (packet.getHeaderValue("Call-Id")) + param.addressParams.get("tag");
+    private findSession(packet: SIPPacket) {
+        return this.sessions.find(s => s.matchesPacket(packet));
     }
 
     private onRequest(packet: SIPRequestPacket, _serverTx?: ServerTransaction) {
-        let packetId = this.getPacketId(packet);
-        let session = this.sessions.filter(i => i.id == packetId)[0];
+        let session = this.findSession(packet);
         if (!session) {
             session = new SIPResponseSession({ packet, handler: this });
             this.emit("response-session", session);
@@ -70,9 +67,8 @@ class SIPSessionHandler extends EventEmitter {
 
 
     private onResponse(packet: SIPResponsePacket) {
-        let packetId = this.getPacketId(packet);
-        let session = this.sessions.filter(i => i.id == packetId)[0];
-        if (!!session)
+        let session = this.findSession(packet);
+        if (session)
             session.onResponse(packet);
     }
 
@@ -155,6 +151,21 @@ class SIPSession extends EventEmitter {
 
     get id() {
         return this.callId + this.fromTag// + this.toTag;
+    }
+
+    /** True if packet Call-Id/From/To tags belong to this session (same or swapped tags). */
+    public matchesPacket(packet: SIPPacket): boolean {
+        if (packet.getHeaderValue("Call-Id") !== this.callId)
+            return false;
+
+        const fromTag = new FromToParam(packet.getHeaderValue("From")).addressParams.get("tag");
+        const toTag = new FromToParam(packet.getHeaderValue("To")).addressParams.get("tag");
+
+        if (!this.toTag)
+            return fromTag === this.fromTag || toTag === this.fromTag;
+
+        return (fromTag === this.fromTag && toTag === this.toTag)
+            || (fromTag === this.toTag && toTag === this.fromTag);
     }
 
     public nextCSeq() {

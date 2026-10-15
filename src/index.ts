@@ -13,6 +13,7 @@ import {
     NonInviteClientTransaction,
     InviteServerTransaction,
     NonInviteServerTransaction,
+    Non2xxAckCustomize,
 } from "./sip-transaction";
 import {
     SIP_TIMER_DEFAULTS,
@@ -57,6 +58,7 @@ export {
     NonInviteClientTransaction,
     InviteServerTransaction,
     NonInviteServerTransaction,
+    Non2xxAckCustomize,
     SIP_TIMER_DEFAULTS,
     SIPTransactionConfig,
     SIPTransactionResolvedConfig,

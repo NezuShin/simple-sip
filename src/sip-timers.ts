@@ -20,6 +20,16 @@ interface SIPTransactionConfig {
     invite2xxServerRetransmit?: boolean;
     /** When false, pass through with no transaction state or timers. */
     enabled?: boolean;
+    /**
+     * How INVITE client non-2xx ACKs are sent. Default `auto`.
+     * Real customize signature: Non2xxAckCustomize in sip-transaction.
+     */
+    non2xxAckMode?: "auto" | "manual";
+    /**
+     * Optional ACK builder hook (sync or async).
+     * `(tx: InviteClientTransaction, response: SIPResponsePacket, builder: SIPRequestPacketBuilder) => SIPRequestPacketBuilder | void | Promise<...>`
+     */
+    non2xxAckCustomize?: (...args: any[]) => any;
 }
 
 interface SIPTransactionResolvedConfig {
@@ -32,6 +42,8 @@ interface SIPTransactionResolvedConfig {
     serverRetransmit: boolean;
     invite2xxServerRetransmit: boolean;
     enabled: boolean;
+    non2xxAckMode: "auto" | "manual";
+    non2xxAckCustomize?: (...args: any[]) => any;
 }
 
 function resolveTransactionConfig(partial?: SIPTransactionConfig): SIPTransactionResolvedConfig {
@@ -45,6 +57,8 @@ function resolveTransactionConfig(partial?: SIPTransactionConfig): SIPTransactio
         serverRetransmit: partial?.serverRetransmit ?? true,
         invite2xxServerRetransmit: partial?.invite2xxServerRetransmit ?? true,
         enabled: partial?.enabled ?? true,
+        non2xxAckMode: partial?.non2xxAckMode ?? "auto",
+        non2xxAckCustomize: partial?.non2xxAckCustomize,
     };
 }
 
